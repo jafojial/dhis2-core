@@ -758,10 +758,9 @@ public abstract class AbstractCrudController<T extends IdentifiableObject> exten
         throws Exception
     {
         preUpdateItems( object, items );
-        TypeReport deletions = collectionService.delCollectionItems( object, pvProperty, items.getDeletions() );
-        TypeReport additions = collectionService.addCollectionItems( object, pvProperty, items.getAdditions() );
+        TypeReport report = collectionService.mergeCollectionItems( object, pvProperty, items );
         postUpdateItems( object, items );
-        return typeReport( deletions.mergeAllowEmpty( additions ) );
+        return typeReport( report );
     }
 
     @PutMapping( value = "/{uid}/{property}", consumes = APPLICATION_JSON_VALUE )

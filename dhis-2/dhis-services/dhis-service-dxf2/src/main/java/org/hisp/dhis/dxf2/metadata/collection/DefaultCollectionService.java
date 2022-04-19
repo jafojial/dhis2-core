@@ -28,8 +28,7 @@
 package org.hisp.dhis.dxf2.metadata.collection;
 
 import static java.util.stream.Collectors.toList;
-import static org.hisp.dhis.dxf2.webmessage.WebMessageUtils.conflict;
-import static org.hisp.dhis.dxf2.webmessage.WebMessageUtils.validateAndThrowErrors;
+import static org.hisp.dhis.dxf2.webmessage.WebMessageUtils.*;
 
 import java.util.Collection;
 import java.util.List;
@@ -39,6 +38,7 @@ import lombok.AllArgsConstructor;
 import org.hisp.dhis.cache.HibernateCacheManager;
 import org.hisp.dhis.common.IdentifiableObject;
 import org.hisp.dhis.common.IdentifiableObjectManager;
+import org.hisp.dhis.common.IdentifiableObjects;
 import org.hisp.dhis.dbms.DbmsManager;
 import org.hisp.dhis.dxf2.webmessage.WebMessageException;
 import org.hisp.dhis.dxf2.webmessage.WebMessageUtils;
@@ -95,7 +95,6 @@ public class DefaultCollectionService implements CollectionService
         }
 
         TypeReport report = new TypeReport( property.getItemKlass() );
-        manager.refresh( object );
 
         if ( property.isOwner() )
         {
@@ -106,8 +105,6 @@ public class DefaultCollectionService implements CollectionService
             addNonOwnedCollectionItems( object, property, itemCodes, report );
         }
 
-        dbmsManager.clearSession();
-        cacheManager.clearCache();
         return report;
     }
 
@@ -176,7 +173,6 @@ public class DefaultCollectionService implements CollectionService
         }
 
         TypeReport report = new TypeReport( property.getItemKlass() );
-        manager.refresh( object );
 
         if ( property.isOwner() )
         {
@@ -189,9 +185,6 @@ public class DefaultCollectionService implements CollectionService
 
         validateAndThrowErrors( () -> schemaValidator.validateProperty( property, object ) );
         manager.update( object );
-
-        dbmsManager.clearSession();
-        cacheManager.clearCache();
         return report;
     }
 
@@ -252,6 +245,18 @@ public class DefaultCollectionService implements CollectionService
         TypeReport deletions = delCollectionItems( object, propertyName, getCollection( object, property ) );
         TypeReport additions = addCollectionItems( object, propertyName, objects );
         return deletions.mergeAllowEmpty( additions );
+    }
+
+    @Override
+    @Transactional
+    public TypeReport mergeCollectionItems( IdentifiableObject object, String propertyName, IdentifiableObjects items )
+        throws Exception
+    {
+        TypeReport delReport = delCollectionItems( object, propertyName, items.getDeletions() );
+        manager.flush();
+        manager.refresh( object );
+        TypeReport addReport = addCollectionItems( object, propertyName, items.getAdditions() );
+        return delReport.mergeAllowEmpty( addReport );
     }
 
     private Property validateUpdate( IdentifiableObject object, String propertyName, String message )
